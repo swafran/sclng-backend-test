@@ -1,4 +1,4 @@
-module github.com/Scalingo/sclng-backend-test-v1
+module github.com/swafran/sclng-backend-test
 
 go 1.20
 
