@@ -8,7 +8,6 @@ import (
 
 	"github.com/Scalingo/go-utils/logger"
 	gh "github.com/swafran/sclng-backend-test/internal/github"
-	// gh "github.com/swafran/sclng-backend-test/internal/github"
 )
 
 func main() {
@@ -16,14 +15,13 @@ func main() {
 	log.Info("Initializing app")
 	cfg, err := newConfig()
 	if err != nil {
-		log.WithError(err).Error("fail to initialize configuration")
+		log.WithError(err).Error("failed to initialize configuration")
 		os.Exit(1)
 	}
 
 	// httpclient := &http.Client{Timeout: 10 * time.Second}
 
 	httpclient := &http.Client{}
-
 	ctx := context.Background()
 
 	searchUrl := fmt.Sprintf("%s%s", cfg.GithubApi, cfg.GithubSearch)

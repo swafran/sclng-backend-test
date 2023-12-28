@@ -8,7 +8,7 @@ import (
 type Config struct {
 	Port         int    `envconfig:"PORT" default:"5000"`
 	GithubApi    string `envconfig:"GITHUB_API" default:"https://api.github.com"`
-	GithubSearch string
+	GithubSearch string `envconfig:"GITHUB_SEARCH" default:"/search/repositories"`
 }
 
 func newConfig() (*Config, error) {
