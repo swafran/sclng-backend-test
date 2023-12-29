@@ -1,18 +1,14 @@
 package github
 
-type SearchResult struct {
-	TotalCount        int
-	IncompleteResults bool
-	Items             []Repo
-}
+import "encoding/json"
 
 type Repo struct {
-	Id         int    `json:"id"`
-	CreatedAt  string `json:"created_at"`
-	FullName   string `json:"full_name"`
-	Owner      `json:"owner"`
-	Repository string `json:"name"`
-	Languages  map[string]Language
+	Id           int    `json:"id"`
+	FullName     string `json:"full_name"`
+	Owner        `json:"owner"`
+	Repository   string `json:"name"`
+	LanguagesURL string `json:"languages_url"`
+	Languages    map[string]Language
 }
 
 type Owner struct {
@@ -30,7 +26,12 @@ type RepoOut struct {
 	Languages  map[string]Language
 }
 
-// func (r *Repo) MarshalJSON() ([]byte, error) {
-// 	ro := RepoOut(*r)
-// 	return json.Marshal(&ro)
-// }
+func (r *Repo) MarshalJSON() ([]byte, error) {
+	ro := RepoOut{
+		r.FullName,
+		r.Owner,
+		r.Repository,
+		r.Languages,
+	}
+	return json.Marshal(&ro)
+}

@@ -5,43 +5,94 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 
 	"github.com/sirupsen/logrus"
 )
 
-func Search100(ctx context.Context, searchUrl string, log logrus.FieldLogger, httpclient *http.Client) {
+type Client struct {
+	Config RepoConfig
+}
 
-	query := queryString()
-	searchUrl = fmt.Sprintf("%s?q=%s&sort=created", searchUrl, query)
+type RepoConfig struct {
+	RepoUrl    string
+	LangUrl    string
+	Enrich     chan int
+	Logger     logrus.FieldLogger
+	HttpClient *http.Client
+}
 
-	fmt.Println(searchUrl)
-	req, err := http.NewRequest("GET", searchUrl, nil)
+func (c *Client) UpdateRepos(ctx context.Context) {
+	enrich := c.Config.Enrich
+	url := fmt.Sprintf("%s?since=730000000", c.Config.RepoUrl)
+	log := c.Config.Logger
+
+	fmt.Println(url)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Error("bad request string", err)
 	}
 
-	resp, err := httpclient.Do(req)
+	resp, err := c.Config.HttpClient.Do(req)
 	if err != nil {
 
 		// TODO set http code, error message
 		log.Error("bad response", err)
 	}
 
-	result := SearchResult{}
-	err2 := json.NewDecoder(resp.Body).Decode(&result)
+	repos := []Repo{}
+	err2 := json.NewDecoder(resp.Body).Decode(&repos)
 
 	fmt.Println(err2)
 
-	fmt.Println(len(result.Items))
-	// fmt.Println(repos[0])
+	fmt.Println(len(repos))
 
-	for _, repo := range result.Items {
-		fmt.Println(repo.Id)
+	numRepos := len(repos)
+
+	for i := 0; i < numRepos; i++ {
+		go c.getLanguages(ctx, &repos[i])
 	}
 
+	for range repos {
+		<-enrich
+	}
+
+	fmt.Println("done")
 }
 
-func queryString() string {
-	return url.QueryEscape("created:>=2023-12-26")
+func (c *Client) getLanguages(ctx context.Context, repo *Repo) {
+	enrich := c.Config.Enrich
+	log := c.Config.Logger
+
+	fmt.Println("processing: ", repo.Id)
+
+	req, err := http.NewRequest("GET", repo.LanguagesURL, nil)
+	if err != nil {
+		log.Error("bad request string", err)
+	}
+
+	resp, err := c.Config.HttpClient.Do(req)
+	if err != nil {
+
+		// TODO set http code, error message
+		log.Error("bad response", err)
+	}
+
+	languages := map[string]int{}
+	err = json.NewDecoder(resp.Body).Decode(&languages)
+	if err != nil {
+		log.Error("url: " + repo.LanguagesURL)
+		log.Error("can't unmarshal response ", err)
+	}
+
+	for k, v := range languages {
+		repo.Languages[k] = Language{
+			Bytes: v,
+		}
+	}
+
+	enrich <- 1
+}
+
+func (c *Client) Dispatch() {
+
 }
