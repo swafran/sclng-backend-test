@@ -26,6 +26,11 @@ type RepoOut struct {
 	Languages  map[string]Language
 }
 
+type SearchResult struct {
+	TotalCount int    `json:"total_count"`
+	Items      []Repo `json:"items"`
+}
+
 func (r *Repo) MarshalJSON() ([]byte, error) {
 	ro := RepoOut{
 		r.FullName,

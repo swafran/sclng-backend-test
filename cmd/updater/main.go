@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/Scalingo/go-utils/logger"
+	"github.com/go-redis/redis"
 	gh "github.com/swafran/sclng-backend-test/internal/github"
 )
 
@@ -20,12 +22,29 @@ func main() {
 
 	ctx := context.Background()
 
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     cfg.RedisUrl,
+		Password: "",
+		DB:       0,
+	})
+
+	_, err = redisClient.Ping().Result()
+	if err != nil {
+		// TODO
+		log.Error(err)
+	}
+
 	repoConfig := gh.RepoConfig{
-		RepoUrl:    fmt.Sprintf("%s%s", cfg.GithubApi, cfg.GithubRepos),
-		LangUrl:    fmt.Sprintf("%s%s", cfg.GithubApi, cfg.GithubRepos),
-		Enrich:     make(chan int),
-		Logger:     log,
-		HttpClient: cfg.Services.HttpClient,
+		RepoUrl:     fmt.Sprintf("%s%s", cfg.GithubApi, cfg.GithubRepos),
+		SearchUrl:   fmt.Sprintf("%s%s", cfg.GithubApi, cfg.GithubSearch),
+		Version:     cfg.GithubVersion,
+		Token:       cfg.GithubToken,
+		SinceOffset: cfg.SinceOffset,
+		FrontRepos:  cfg.FrontRepos,
+		Enrich:      make(chan int),
+		Logger:      log,
+		HttpClient:  cfg.Services.HttpClient,
+		RedisClient: redisClient,
 	}
 	githubClient := gh.Client{
 		Config: repoConfig,
@@ -35,7 +54,13 @@ func main() {
 	githubClient.UpdateRepos(ctx)
 
 	if cfg.LocalSchedule {
-		log.Info("starting local schedule")
-		githubClient.Dispatch()
+		forever := make(chan bool)
+		ticker := time.NewTicker(time.Duration(cfg.LocalSchedulePeriod) * time.Minute)
+		defer ticker.Stop()
+
+		log.Info("starting local scheduler")
+		githubClient.Schedule(ctx, ticker)
+
+		<-forever
 	}
 }

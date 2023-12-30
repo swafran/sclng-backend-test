@@ -8,6 +8,7 @@ import (
 
 	"github.com/Scalingo/go-handlers"
 	"github.com/Scalingo/go-utils/logger"
+	"github.com/go-redis/redis"
 )
 
 func main() {
@@ -19,12 +20,26 @@ func main() {
 		os.Exit(1)
 	}
 
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     cfg.RedisUrl,
+		Password: "",
+		DB:       0,
+	})
+
+	_, err = redisClient.Ping().Result()
+	if err != nil {
+		// TODO
+		log.Error(err)
+	}
+
 	log.Info("Initializing routes")
 	router := handlers.NewRouter(log)
 	router.HandleFunc("/ping", pongHandler)
 	// Initialize web server and configure the following routes:
 	// GET /repos
 	// GET /stats
+
+	router.HandleFunc("/repos", reposHandler)
 
 	log = log.WithField("port", cfg.Port)
 	log.Info("Listening...")
@@ -33,6 +48,10 @@ func main() {
 		log.WithError(err).Error("Fail to listen to the given port")
 		os.Exit(2)
 	}
+}
+
+func reposHandler(w http.ResponseWriter, r *http.Request, _ map[string]string) error {
+
 }
 
 func pongHandler(w http.ResponseWriter, r *http.Request, _ map[string]string) error {
