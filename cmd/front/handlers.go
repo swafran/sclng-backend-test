@@ -110,7 +110,7 @@ func filterByLanguages(reposJson string, reqLangs []string) (string, error) {
 	filteredRepos := []gh.Repo{}
 	for _, repo := range repos {
 		if repo.Languages != nil {
-			for language, _ := range repo.Languages {
+			for language := range repo.Languages {
 				if _, ok := acceptedLangs[language]; ok {
 					filteredRepos = append(filteredRepos, repo)
 				}
