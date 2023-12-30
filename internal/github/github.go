@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-redis/redis"
 	"github.com/sirupsen/logrus"
+	"github.com/swafran/sclng-backend-test/internal/cache"
 )
 
 type Client struct {
@@ -31,7 +31,7 @@ type RepoConfig struct {
 	Enrich      chan int
 	Logger      logrus.FieldLogger
 	HttpClient  HttpDoer
-	RedisClient *redis.Client
+	RedisClient cache.GetterSetter
 }
 
 func (c *Client) UpdateRepos(ctx context.Context) {
@@ -58,13 +58,12 @@ func (c *Client) UpdateRepos(ctx context.Context) {
 		// TODO
 	}
 
-	err = c.Config.RedisClient.Set(c.Config.FrontRepos, string(b), 0).Err()
+	err = c.Config.RedisClient.Set(c.Config.FrontRepos, string(b), 0)
 	if err != nil {
 		log.Error("couldn't write to redis: %s", err)
 	}
 
-	log.Infof("\nwrote to redis: %s", string(b))
-	log.Infof("\nand here it is: %s", c.Config.RedisClient.Get(c.Config.FrontRepos))
+	log.Info("wrote to redis")
 	fmt.Println("done!")
 }
 

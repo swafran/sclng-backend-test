@@ -6,8 +6,8 @@ import (
 )
 
 type Config struct {
-	Port     int `envconfig:"PORT" default:"5000"`
-	RedisUrl int `envconfig:"REDIS_URL" default:"redis:"6379"`
+	Port     int    `envconfig:"PORT" default:"5000"`
+	RedisUrl string `envconfig:"REDIS_URL" default:"redis:6379"`
 }
 
 func newConfig() (*Config, error) {

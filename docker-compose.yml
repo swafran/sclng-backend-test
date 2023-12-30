@@ -1,17 +1,17 @@
-# version: '3'
-# services:
-#   web:
-#     build: .
-#     volumes:
-#       - ./:/go/src/github.com/Scalingo/sclng-backend-test-v1
-#     ports:
-#       - "5000:5000"
-#     command: reflex -r '\.go$$' -s -- sh -c 'go build -buildvcs=false && ./sclng-backend-test-v1'
-#     stop_signal: SIGKILL
-
 version: '3'
 
 services:
+  front:
+    build:
+      context: .
+      dockerfile: cmd/front/Dockerfile
+    env_file:
+      - cmd/front/local.env
+    ports:
+      - "5000:5000"
+    depends_on:
+      - updater
+      - redis
   updater:
     build:
       context: .
@@ -22,18 +22,6 @@ services:
       - "5001:5001"
     depends_on:
       - redis
-      # - db
-  # db:
-  #   image: postgres:14.1-alpine
-  #   restart: always
-  #   environment:
-  #     - POSTGRES_USER=postgres
-  #     - POSTGRES_PASSWORD=postgres
-  #   ports:
-  #     - '5432:5432'
-  #   volumes: 
-  #     - db-data:/var/lib/postgresql/data
-      # - ./db/init.sql:/docker-entrypoint-initdb.d/create_tables.sql
   redis:
     image: redis:latest
     restart: always
@@ -45,5 +33,3 @@ services:
 volumes:
   redis-data:
     driver: local
-  # db-data:
-  #   driver: local

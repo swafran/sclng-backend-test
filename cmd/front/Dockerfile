@@ -1,10 +1,7 @@
-FROM golang:1.20
-LABEL maintainer="Infrastructure Services Team <team-infrastructure-services@scalingo.com>"
+FROM golang:1.21
 
-RUN go install github.com/cespare/reflex@latest
+WORKDIR /project
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /front ./cmd/front
 
-WORKDIR $GOPATH/src/github.com/Scalingo/sclng-backend-test-v1
-
-EXPOSE 5000
-
-CMD $GOPATH/bin/sclng-backend-test-v1
+CMD /front

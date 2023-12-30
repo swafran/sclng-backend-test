@@ -1,14 +1,18 @@
 package cache
 
-import "github.com/go-redis/redis"
+import (
+	"time"
 
-type Cacher interface {
-	Set(string, string)
-	Get(string) string
+	"github.com/go-redis/redis"
+)
+
+type GetterSetter interface {
+	Get(string) (string, error)
+	Set(string, interface{}, time.Duration) error
 }
 
 type client struct {
-	client redis.Client
+	client *redis.Client
 }
 
 type RedisConfig struct {
@@ -30,16 +34,18 @@ func StartClient(cfg RedisConfig) (client, error) {
 	}
 
 	return client{
-		redisClient,
-	}
+		client: redisClient,
+	}, err
 }
 
-func (c *client) Get(s string) string {
-	return c.client.Get(s)
+func (c *client) Get(s string) (string, error) {
+	stringCmd := c.client.Get(s)
+
+	return stringCmd.String(), stringCmd.Err()
 }
 
-func (c *client) Set(k string, v string) {
-	statusCmd := c.Client.Set(k, v, 0)
+func (c *client) Set(k string, v interface{}, expiration time.Duration) error {
+	statusCmd := c.client.Set(k, v, expiration)
 
-	// treat statusCmd...
+	return statusCmd.Err()
 }

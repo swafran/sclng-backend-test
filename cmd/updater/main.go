@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/Scalingo/go-utils/logger"
-	"github.com/go-redis/redis"
+	"github.com/swafran/sclng-backend-test/internal/cache"
 	gh "github.com/swafran/sclng-backend-test/internal/github"
 )
 
@@ -20,18 +20,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx := context.Background()
-
-	redisClient := redis.NewClient(&redis.Options{
+	redisClient, err := cache.StartClient(cache.RedisConfig{
 		Addr:     cfg.RedisUrl,
 		Password: "",
 		DB:       0,
 	})
-
-	_, err = redisClient.Ping().Result()
 	if err != nil {
-		// TODO
-		log.Error(err)
+		log.WithError(err).Error("failed to establish redis connection")
+		os.Exit(1)
 	}
 
 	repoConfig := gh.RepoConfig{
@@ -44,13 +40,15 @@ func main() {
 		Enrich:      make(chan int),
 		Logger:      log,
 		HttpClient:  cfg.Services.HttpClient,
-		RedisClient: redisClient,
+		RedisClient: &redisClient,
 	}
 	githubClient := gh.Client{
 		Config: repoConfig,
 	}
 	cfg.Services.GithubClient = githubClient
 
+	//TODO
+	ctx := context.Background()
 	githubClient.UpdateRepos(ctx)
 
 	if cfg.LocalSchedule {
