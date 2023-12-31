@@ -41,7 +41,7 @@ func StartClient(cfg RedisConfig) (client, error) {
 func (c *client) Get(s string) (string, error) {
 	stringCmd := c.client.Get(s)
 
-	return stringCmd.String(), stringCmd.Err()
+	return stringCmd.Val(), stringCmd.Err()
 }
 
 func (c *client) Set(k string, v interface{}, expiration time.Duration) error {

@@ -34,28 +34,27 @@ type RepoConfig struct {
 	RedisClient cache.GetterSetter
 }
 
+// UpdateRepos sets the latest 100 repos from Github into Redis,
+// with language information
 func (c *Client) UpdateRepos(ctx context.Context) {
 	enrich := c.Config.Enrich
-
 	log := c.Config.Logger
-
 	repos := c.latest100(ctx)
-
-	fmt.Println(len(repos))
-
 	numRepos := len(repos)
 
+	// Enrich data with languages
 	for i := 0; i < numRepos; i++ {
 		go c.getLanguages(ctx, &repos[i])
 	}
 
+	// Wait for all language requests to come back
 	for range repos {
 		<-enrich
 	}
 
 	b, err := json.Marshal(repos)
 	if err != nil {
-		// TODO
+		log.Error("can't marshal repos")
 	}
 
 	err = c.Config.RedisClient.Set(c.Config.FrontRepos, string(b), 0)
@@ -63,10 +62,14 @@ func (c *Client) UpdateRepos(ctx context.Context) {
 		log.Error("couldn't write to redis: %s", err)
 	}
 
-	log.Info("wrote to redis")
-	fmt.Println("done!")
+	log.Info("repos updated")
 }
 
+// latest100 finds the 100 most recent repos
+// first, it gets a recent repo id as a starting point,
+// using the /search/repositories?q=created>=... endpoint
+// then, it finds the last page of most recent repos created,
+// using the /repositories?since... endpoint
 func (c *Client) latest100(ctx context.Context) []Repo {
 	since := c.searchSince(ctx)
 	url := fmt.Sprintf("%s?since=%d", c.Config.RepoUrl, since)
@@ -79,6 +82,7 @@ func (c *Client) latest100(ctx context.Context) []Repo {
 	return repos
 }
 
+// searchSince finds an id among recently created repos
 func (c *Client) searchSince(ctx context.Context) int {
 	var since int
 	log := c.Config.Logger
@@ -87,48 +91,44 @@ func (c *Client) searchSince(ctx context.Context) int {
 
 	resp, err := c.Get(ctx, url)
 	if err != nil {
-		// TODO
-		log.Error("really bad ", err)
+		log.Error(err)
 	}
 
 	searchResult := SearchResult{}
 	err = json.NewDecoder(resp.Body).Decode(&searchResult)
 	if err != nil {
-		// TODO
-		fmt.Println(err)
+		log.Error(err)
 	}
 
 	if len(searchResult.Items) > 0 {
 		since = searchResult.Items[len(searchResult.Items)-1].Id
 	}
-	// TODO else error
 
 	return since
 }
 
+// lastCreated recursively follows pages of /repositories?since=ID results
+// until the last page is found, returns the repos from those results
 func (c *Client) lastCreated(ctx context.Context, url string, repos *[]Repo) {
-	fmt.Printf("\nstarting lastest100 url:%s, repos count:%d ", url, len(*repos))
+	log := c.Config.Logger
 
 	if repos == nil {
-		// TODO error
+		log.Error("can't retrieve repos")
 		return
 	}
-
-	log := c.Config.Logger
 	resp, err := c.Get(ctx, url)
-	// TODO error
+	if err != nil {
+		log.Error(err)
+	}
 
 	pageRepos := []Repo{}
 
 	err = json.NewDecoder(resp.Body).Decode(&pageRepos)
 	if err != nil {
-		// TODO
-		log.Error("bad XXXXX")
+		log.Error(err)
 	}
 
-	fmt.Println("pageRepos: ", pageRepos)
 	*repos = append(*repos, pageRepos...)
-
 	links := c.parseLinks(resp.Header.Get("Link"))
 
 	// Recursion
@@ -137,15 +137,15 @@ func (c *Client) lastCreated(ctx context.Context, url string, repos *[]Repo) {
 	}
 }
 
+// getLanguages follows the language link for a repo, and
+// sets the language info
 func (c *Client) getLanguages(ctx context.Context, repo *Repo) {
 	enrich := c.Config.Enrich
 	log := c.Config.Logger
 
-	fmt.Println("processing: ", repo.Id)
-
 	resp, err := c.Get(ctx, repo.LanguagesURL)
 	if err != nil {
-		// TODO
+		log.Error(err)
 	}
 
 	languages := map[string]int{}
@@ -166,6 +166,7 @@ func (c *Client) getLanguages(ctx context.Context, repo *Repo) {
 	enrich <- 1
 }
 
+// parseLinks parses "next" links and returns them as a map
 func (c *Client) parseLinks(s string) map[string]string {
 	links := map[string]string{}
 	chunks := strings.FieldsFunc(s, func(r rune) bool {
@@ -208,6 +209,7 @@ func (c *Client) Get(ctx context.Context, url string) (*http.Response, error) {
 	return resp, nil
 }
 
+// Schedule is for local scheduling only, periodically updates redis with repos
 func (c *Client) Schedule(ctx context.Context, ticker *time.Ticker) {
 	go func() {
 		for t := range ticker.C {

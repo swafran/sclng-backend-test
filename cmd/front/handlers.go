@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/Scalingo/go-handlers"
@@ -18,7 +17,7 @@ func pongHandler(w http.ResponseWriter, r *http.Request, _ map[string]string) er
 
 	err := json.NewEncoder(w).Encode(map[string]string{"status": "pong"})
 	if err != nil {
-		log.WithError(err).Error("Fail to encode JSON")
+		log.WithError(err).Error("failed to encode JSON")
 		return err
 	}
 
@@ -28,13 +27,16 @@ func pongHandler(w http.ResponseWriter, r *http.Request, _ map[string]string) er
 // reposHandler writes the 100 latest repositories data, returns error
 func reposHandler(c cache.GetterSetter, w http.ResponseWriter, r *http.Request) error {
 	log := logger.Get(r.Context())
+
 	reposJson := ""
 	params := r.URL.Query()
-	fullPath := fmt.Sprintf("%s?%s", r.URL.Path, r.URL.RawQuery)
+	fullPath := r.URL.Path
 
 	// if there are query parameters, first try with full path as key
 	if len(params) > 0 {
+		fullPath += "?" + r.URL.RawQuery
 		cachedQuery, err := c.Get(fullPath)
+
 		if err != nil {
 			log.WithError(err).Warn("error retrieving full path from cache")
 		} else if cachedQuery != "" {
@@ -45,13 +47,15 @@ func reposHandler(c cache.GetterSetter, w http.ResponseWriter, r *http.Request) 
 	// then try with route path as key
 	// (this was cached by the updater)
 	if reposJson == "" {
-		reposJson, err := c.Get("/repos")
+		var err error
+		reposJson, err = c.Get("/repos")
 		if err != nil {
 			log.WithError(err).Error("error retrieving default path from cache")
 		}
 
 		// apply filter as necessary
 		if reqLangs, ok := params["l"]; ok {
+			log.Info("applying filter")
 			reposJson, err = filterByLanguages(reposJson, reqLangs)
 
 			if err != nil {
@@ -66,6 +70,7 @@ func reposHandler(c cache.GetterSetter, w http.ResponseWriter, r *http.Request) 
 			}
 		}
 	}
+
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(reposJson))

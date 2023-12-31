@@ -47,8 +47,7 @@ func main() {
 	}
 	cfg.Services.GithubClient = githubClient
 
-	//TODO
-	ctx := context.Background()
+	ctx := context.TODO()
 	githubClient.UpdateRepos(ctx)
 
 	if cfg.LocalSchedule {

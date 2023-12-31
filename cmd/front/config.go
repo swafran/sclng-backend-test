@@ -12,7 +12,7 @@ type Config struct {
 
 func newConfig() (*Config, error) {
 	var cfg Config
-	err := envconfig.Process("", &cfg)
+	err := envconfig.Process("sbt", &cfg)
 	if err != nil {
 		return nil, errors.Wrapf(err, "fail to build config from env")
 	}
