@@ -1,10 +1,35 @@
 version: '3'
+
 services:
-  web:
-    build: .
-    volumes:
-      - ./:/go/src/github.com/Scalingo/sclng-backend-test-v1
+  front:
+    build:
+      context: .
+      dockerfile: cmd/front/Dockerfile
+    env_file:
+      - cmd/front/local.env
     ports:
       - "5000:5000"
-    command: reflex -r '\.go$$' -s -- sh -c 'go build -buildvcs=false && ./sclng-backend-test-v1'
-    stop_signal: SIGKILL
+    depends_on:
+      - updater
+      - redis
+  updater:
+    build:
+      context: .
+      dockerfile: cmd/updater/Dockerfile
+    env_file:
+      - cmd/updater/local.env
+    ports:
+      - "5001:5001"
+    depends_on:
+      - redis
+  redis:
+    image: redis:latest
+    restart: always
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+
+volumes:
+  redis-data:
+    driver: local
